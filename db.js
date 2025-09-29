@@ -2,30 +2,29 @@
 import pkg from 'pg';
 import dotenv from 'dotenv';
 
-// Cargar variables de entorno
 dotenv.config();
-
 const { Pool } = pkg;
 
-// Configuración del pool de conexiones
+// Usar connectionString si quieres, con SSL
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'rebotex_db',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'your_password_here',
-  max: 20, // Máximo número de conexiones en el pool
-  idleTimeoutMillis: 30000, // Tiempo de espera antes de cerrar conexiones inactivas
-  connectionTimeoutMillis: 2000, // Tiempo de espera para establecer conexión
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  ssl: {
+    rejectUnauthorized: false, // Necesario para Supabase
+  },
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
-// Evento para manejar errores de conexión
 pool.on('error', (err, client) => {
-  console.error('Error inesperado en el cliente de la base de datos:', err);
+  console.error('❌ Error inesperado en el cliente de la base de datos:', err);
   process.exit(-1);
 });
 
-// Función para probar la conexión
 export const testConnection = async () => {
   try {
     const client = await pool.connect();
@@ -38,5 +37,4 @@ export const testConnection = async () => {
   }
 };
 
-// Exportar el pool como default
 export default pool;

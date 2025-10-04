@@ -89,7 +89,7 @@ router.get("/user/:userId", async (req, res) => {
     
     // Obtener torneos donde el usuario es organizador
     const torneosOrganizados = await pool.query(
-      `SELECT t.*, u.nombre as organizador_nombre 
+      `SELECT t.*, u.nombre as organizador_nombre, 'Organizador' as rol
        FROM torneo t 
        JOIN usuarios u ON t.organizador_id = u.id 
        WHERE t.organizador_id = $1 
@@ -97,13 +97,29 @@ router.get("/user/:userId", async (req, res) => {
       [userId]
     );
 
+    // Obtener torneos donde el usuario participa como capitán de equipo
+    const torneosCapitan = await pool.query(
+      `SELECT DISTINCT t.*, 
+              u_org.nombre as organizador_nombre,
+              e.nombre as equipo_nombre,
+              'Capitán' as rol
+       FROM torneo t 
+       JOIN usuarios u_org ON t.organizador_id = u_org.id
+       JOIN torneo_equipos te ON t.id = te.torneo_id
+       JOIN equipos e ON te.equipo_id = e.id
+       WHERE e.creador_id = $1 AND te.estado = 'aceptado'
+       ORDER BY t.fecha_inicio DESC`,
+      [userId]
+    );
+
     console.log(`✅ Encontrados ${torneosOrganizados.rows.length} torneos organizados`);
+    console.log(`✅ Encontrados ${torneosCapitan.rows.length} torneos como capitán`);
 
     res.json({
       message: "Torneos obtenidos exitosamente",
       torneos: {
         organizados: torneosOrganizados.rows,
-        participando: [] // Por ahora vacío, se puede implementar después
+        participando: torneosCapitan.rows
       }
     });
 
@@ -174,6 +190,39 @@ router.get("/:id", async (req, res) => {
     console.error("❌ Error al obtener torneo:", error);
     res.status(500).json({ 
       error: "Error interno del servidor al obtener torneo",
+      detail: error.message 
+    });
+  }
+});
+
+// === Obtener equipos aceptados de un torneo (endpoint público) ===
+router.get("/:id/equipos", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🔍 Obteniendo equipos aceptados para el torneo: ${id}`);
+
+    const result = await pool.query(
+      `SELECT e.*, te.estado, te.fecha_registro,
+              u.nombre as capitan_nombre, u.apellidop as capitan_apellido
+       FROM equipos e 
+       JOIN torneo_equipos te ON e.id = te.equipo_id
+       JOIN usuarios u ON e.creador_id = u.id
+       WHERE te.torneo_id = $1 AND te.estado = 'aceptado'
+       ORDER BY e.nombre`,
+      [id]
+    );
+
+    console.log(`✅ Encontrados ${result.rows.length} equipos aceptados`);
+
+    res.json({
+      message: "Equipos del torneo obtenidos exitosamente",
+      equipos: result.rows
+    });
+  } catch (error) {
+    console.error("❌ Error al obtener equipos del torneo:", error);
+    res.status(500).json({ 
+      error: "Error interno del servidor al obtener equipos del torneo",
       detail: error.message 
     });
   }

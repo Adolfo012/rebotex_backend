@@ -1,25 +1,31 @@
-// db.js
+// db.js - Configuración de la conexión a PostgreSQL
 import pkg from 'pg';
 import dotenv from 'dotenv';
 
+// Cargar variables de entorno
 dotenv.config();
+
 const { Pool } = pkg;
 
+// Configuración del pool de conexiones
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // obligatorio para Supabase
-  },
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'rebotex_db',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'your_password_here',
+  max: 20, // Máximo número de conexiones en el pool
+  idleTimeoutMillis: 30000, // Tiempo de espera antes de cerrar conexiones inactivas
+  connectionTimeoutMillis: 2000, // Tiempo de espera para establecer conexión
 });
 
-pool.on('error', (err) => {
-  console.error('❌ Error inesperado en el cliente de la base de datos:', err);
+// Evento para manejar errores de conexión
+pool.on('error', (err, client) => {
+  console.error('Error inesperado en el cliente de la base de datos:', err);
   process.exit(-1);
 });
 
+// Función para probar la conexión
 export const testConnection = async () => {
   try {
     const client = await pool.connect();
@@ -32,4 +38,5 @@ export const testConnection = async () => {
   }
 };
 
+// Exportar el pool como default
 export default pool;

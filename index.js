@@ -1,12 +1,11 @@
 // index.js - Servidor principal de ReboteX Backend (Railway listo)
-import dns from 'dns';
-dns.setDefaultResultOrder('ipv4first');
-
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
 import torneosRoutes from "./routes/torneos.js";
+import equiposRoutes from "./routes/equipos.js";
+import notificacionesRoutes from "./routes/notificaciones.js";
 import { testConnection } from "./db.js";
 
 // Cargar variables de entorno
@@ -38,6 +37,16 @@ console.log("✅ Rutas de autenticación registradas en /api/auth");
 console.log("🔧 Registrando rutas de torneos...");
 app.use("/api/torneos", torneosRoutes);
 console.log("✅ Rutas de torneos registradas en /api/torneos");
+
+// Rutas de equipos
+console.log("🔧 Registrando rutas de equipos...");
+app.use("/api/equipos", equiposRoutes);
+console.log("✅ Rutas de equipos registradas en /api/equipos");
+
+// Rutas de notificaciones
+console.log("🔧 Registrando rutas de notificaciones...");
+app.use("/api/notificaciones", notificacionesRoutes);
+console.log("✅ Rutas de notificaciones registradas en /api/notificaciones");
 
 // Ruta de salud del servidor
 app.get("/health", (req, res) => {
@@ -90,6 +99,9 @@ const startServer = async () => {
       console.log(`   - POST /api/auth/login`);
       console.log(`   - POST /api/torneos/create`);
       console.log(`   - GET  /api/torneos/user/:id`);
+      console.log(`   - GET  /api/notificaciones`);
+      console.log(`   - POST /api/notificaciones/:id/aceptar`);
+      console.log(`   - POST /api/notificaciones/:id/rechazar`);
     });
   } catch (error) {
     console.error('❌ Error al iniciar el servidor:', error);

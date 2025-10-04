@@ -14,19 +14,24 @@
     "test": "node test-register.js",
     "build": "echo 'No build step required for Node.js'"
   },
-  "keywords": ["torneos", "deportes", "backend", "api"],
+  "keywords": [
+    "torneos",
+    "deportes",
+    "backend",
+    "api"
+  ],
   "author": "ReboteX Team",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "bcrypt": "^5.1.1",
+    "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.11.3"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "nodemon": "^3.0.1"
   }
 }

@@ -1,4 +1,4 @@
-// db.js - Configuración de la conexión a PostgreSQL
+// db.js - Conexión a PostgreSQL (Supabase) lista para Render
 import pkg from 'pg';
 import dotenv from 'dotenv';
 
@@ -7,21 +7,18 @@ dotenv.config();
 
 const { Pool } = pkg;
 
-// Configuración del pool de conexiones
+// Configuración del pool
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'rebotex_db',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'your_password_here',
-  max: 20, // Máximo número de conexiones en el pool
-  idleTimeoutMillis: 30000, // Tiempo de espera antes de cerrar conexiones inactivas
-  connectionTimeoutMillis: 2000, // Tiempo de espera para establecer conexión
+  connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${encodeURIComponent(process.env.DB_PASSWORD)}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`,
+  ssl: { rejectUnauthorized: false }, // obligatorio para Supabase
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
-// Evento para manejar errores de conexión
-pool.on('error', (err, client) => {
-  console.error('Error inesperado en el cliente de la base de datos:', err);
+// Manejo de errores global
+pool.on('error', (err) => {
+  console.error('❌ Error inesperado en el cliente de la base de datos:', err);
   process.exit(-1);
 });
 
@@ -29,14 +26,13 @@ pool.on('error', (err, client) => {
 export const testConnection = async () => {
   try {
     const client = await pool.connect();
-    console.log('✅ Conexión a la base de datos establecida correctamente');
+    console.log('✅ Conexión a Supabase establecida correctamente');
     client.release();
     return true;
   } catch (err) {
-    console.error('❌ Error al conectar con la base de datos:', err.message);
-    return false;
+    console.error('❌ Error al conectar con Supabase:', err.message);
+    throw err;
   }
 };
 
-// Exportar el pool como default
 export default pool;

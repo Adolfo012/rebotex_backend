@@ -1,6 +1,7 @@
 // routes/auth.js - Rutas de autenticación
+//cambios.
 import express from "express";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import pool from "../db.js";
 

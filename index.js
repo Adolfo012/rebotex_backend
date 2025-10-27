@@ -6,7 +6,9 @@ import authRoutes from "./routes/auth.js";
 import torneosRoutes from "./routes/torneos.js";
 import equiposRoutes from "./routes/equipos.js";
 import notificacionesRoutes from "./routes/notificaciones.js";
+import partidosRoutes from "./routes/partidos.js";
 import { testConnection } from "./db.js";
+import partidosRouter from "./routes/partidos.js";
 
 // Cargar variables de entorno
 dotenv.config();
@@ -47,6 +49,11 @@ console.log("✅ Rutas de equipos registradas en /api/equipos");
 console.log("🔧 Registrando rutas de notificaciones...");
 app.use("/api/notificaciones", notificacionesRoutes);
 console.log("✅ Rutas de notificaciones registradas en /api/notificaciones");
+
+// Rutas de partidos
+console.log("🔧 Registrando rutas de partidos...");
+app.use("/api/partidos", partidosRouter);
+console.log("✅ Rutas de partidos registradas en /api/partidos");
 
 // Ruta de salud del servidor
 app.get("/health", (req, res) => {

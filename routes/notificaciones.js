@@ -1,3 +1,4 @@
+// Prueba
 // routes/notificaciones.js - Gestión de notificaciones de invitaciones/solicitudes
 import express from "express";
 import pool from "../db.js";

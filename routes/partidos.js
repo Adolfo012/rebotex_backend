@@ -382,6 +382,54 @@ router.get("/:id/favorito", async (req, res) => {
     const streakA = await getStreakWins(localId);
     const streakB = await getStreakWins(visitId);
 
+    // Small-sample adjustments shared between ML and heuristic
+    const capFor = (minpj) => {
+      if (minpj <= 1) return 0.55;
+      if (minpj === 2) return 0.60;
+      if (minpj === 3) return 0.65;
+      if (minpj === 4) return 0.70;
+      if (minpj === 5) return 0.75;
+      if (minpj <= 7) return 0.80;
+      if (minpj <= 9) return 0.85;
+      return 0.90;
+    };
+    const wrSafe = (x) => {
+      const pj = Number(x.pj || 0);
+      const pg = Number(x.pg || 0);
+      if (typeof x.win_rate === 'number' && x.win_rate !== 0) return x.win_rate;
+      return pj > 0 ? ((pg + 1) / (pj + 2)) : 0.5;
+    };
+    const shrinkFactor = (minpj) => {
+      if (minpj <= 1) return 0.25;
+      if (minpj === 2) return 0.35;
+      if (minpj === 3) return 0.50;
+      if (minpj === 4) return 0.60;
+      if (minpj === 5) return 0.70;
+      if (minpj === 6) return 0.80;
+      if (minpj <= 8) return 0.90;
+      if (minpj <= 10) return 0.95;
+      return 1.00;
+    };
+    const adjustProb = (probRaw, A, B) => {
+      const minpj = Math.min(Number(A.pj || 0), Number(B.pj || 0));
+      const alpha = shrinkFactor(minpj);
+      const capHi = capFor(minpj);
+      let p = 0.5 + (probRaw - 0.5) * alpha;
+      try {
+        const dw = Math.abs(wrSafe(A) - wrSafe(B));
+        const dd = Math.abs(Number(A.diff_pg || 0) - Number(B.diff_pg || 0));
+        const dpf = Math.abs(Number(A.pf_pg || 0) - Number(B.pf_pg || 0));
+        const parity = (dw < 0.08) && (dd < 2.0) && (dpf < 2.0);
+        if (parity) {
+          p = 0.5 + (p - 0.5) * 0.7;
+        }
+      } catch(_){}
+      const lo = 1 - capHi, hi = capHi;
+      if (p < lo) p = lo;
+      if (p > hi) p = hi;
+      return { p, minpj, alpha, capHi };
+    };
+
     // Helper to use global fetch or node-fetch dynamically
     const doFetch = async (url, opts) => {
       const f = globalThis.fetch || (await import('node-fetch')).default;
@@ -397,15 +445,23 @@ router.get("/:id/favorito", async (req, res) => {
       });
       if (!resp.ok) throw new Error(`ML service responded ${resp.status}`);
       const json = await resp.json();
+      // Post-process ML probability with the same small-sample adjustments
+      const favoriteIsLocal = json?.favorito_id && Number(json.favorito_id) === Number(localId);
+      const probRaw = Number(json?.prob || 0.5);
+      const adj = adjustProb(probRaw, A, B);
       const explain = {
         method: 'model',
         equipos: [
           { id: localId, nombre: localName, streak_wins: streakA, metrics: A },
           { id: visitId, nombre: visitName, streak_wins: streakB, metrics: B }
         ],
-        note: 'Probabilidad calibrada (árbol de decisión) y acotada entre 10% y 90% para evitar extremos.'
+        probability_raw: probRaw,
+        probability_shrunk: 0.5 + (probRaw - 0.5) * adj.alpha,
+        probability: adj.p,
+        small_sample: { min_pj: adj.minpj, shrink_factor: adj.alpha, cap_hi: adj.capHi, cap_lo: (1 - adj.capHi) },
+        note: 'Probabilidad ajustada para pocos partidos: shrink hacia 50% y cap dinámico según min(pj).'
       };
-      return res.json({ ...json, explain });
+      return res.json({ favorito_id: favoriteIsLocal ? localId : visitId, favorito_nombre: favoriteIsLocal ? localName : visitName, prob: adj.p, source: 'model', explain });
     } catch (err) {
       console.warn('⚠️ ML service not available, using heuristic:', err.message || err);
       const score = (x) => {
@@ -423,7 +479,8 @@ router.get("/:id/favorito", async (req, res) => {
       const probA = 1 / (1 + Math.exp(-(sA - sB)));
       const favorito_id = probA >= 0.5 ? localId : visitId;
       const favorito_nombre = probA >= 0.5 ? localName : visitName;
-      const prob = probA >= 0.5 ? probA : (1 - probA);
+      const probRaw = probA >= 0.5 ? probA : (1 - probA);
+      const adj = adjustProb(probRaw, A, B);
       const explain = {
         method: 'heuristic',
         weights: { win_rate: 0.5, diff_pg: 0.3, pf_pg: 0.15, pa_scaled: 0.05 },
@@ -456,10 +513,12 @@ router.get("/:id/favorito", async (req, res) => {
           score: sB
         },
         score_diff: sA - sB,
-        probability: Math.min(0.90, Math.max(0.10, prob))
+        probability_raw: probRaw,
+        probability_shrunk: 0.5 + (probRaw - 0.5) * adj.alpha,
+        probability: adj.p,
+        small_sample: { min_pj: adj.minpj, shrink_factor: adj.alpha, cap_hi: adj.capHi, cap_lo: (1 - adj.capHi) }
       };
-      const probClipped = Math.min(0.90, Math.max(0.10, prob));
-      return res.json({ favorito_id, favorito_nombre, prob: probClipped, source: 'heuristic', explain });
+      return res.json({ favorito_id, favorito_nombre, prob: adj.p, source: 'heuristic', explain });
     }
   } catch (error) {
     console.error("❌ Error al calcular favorito:", error);
